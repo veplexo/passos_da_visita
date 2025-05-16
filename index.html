@@ -79,7 +79,7 @@
     function render() {
       activeContainer.innerHTML = '';
       inactiveContainer.innerHTML = '';
-      
+
       activeSteps.forEach((step, index) => {
         const el = createItem(step, index, true);
         activeContainer.appendChild(el);
@@ -89,8 +89,6 @@
         const el = createItem(step, index, false);
         inactiveContainer.appendChild(el);
       });
-
-      makeDraggable();
     }
 
     function createItem(text, index, isActive) {
@@ -102,6 +100,7 @@
         <span>${text}</span>
         <button class="delete-btn">🗑️</button>
       `;
+
       div.querySelector('.delete-btn').onclick = () => {
         if (isActive) {
           inactiveSteps.push(activeSteps.splice(index, 1)[0]);
@@ -110,39 +109,35 @@
         }
         render();
       };
+
+      if (isActive) {
+        div.addEventListener('dragstart', (e) => {
+          div.classList.add('dragging');
+        });
+        div.addEventListener('dragend', (e) => {
+          div.classList.remove('dragging');
+        });
+      }
+
       return div;
     }
 
-    function makeDraggable() {
-      let dragged;
+    activeContainer.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const dragging = document.querySelector('.dragging');
+      const afterElement = getDragAfterElement(activeContainer, e.clientY);
+      if (afterElement == null) {
+        activeContainer.appendChild(dragging);
+      } else {
+        activeContainer.insertBefore(dragging, afterElement);
+      }
+    });
 
-      activeContainer.querySelectorAll('.item').forEach(item => {
-        item.addEventListener('dragstart', e => {
-          dragged = item;
-          item.classList.add('dragging');
-        });
-
-        item.addEventListener('dragend', e => {
-          item.classList.remove('dragging');
-        });
-      });
-
-      activeContainer.addEventListener('dragover', e => {
-        e.preventDefault();
-        const afterElement = getDragAfterElement(activeContainer, e.clientY);
-        if (afterElement == null) {
-          activeContainer.appendChild(dragged);
-        } else {
-          activeContainer.insertBefore(dragged, afterElement);
-        }
-      });
-
-      activeContainer.addEventListener('drop', () => {
-        const newOrder = Array.from(activeContainer.children).map(el => el.querySelector('span').innerText);
-        activeSteps = newOrder;
-        render();
-      });
-    }
+    activeContainer.addEventListener('drop', () => {
+      const newOrder = Array.from(activeContainer.children).map(el => el.querySelector('span').innerText);
+      activeSteps = newOrder;
+      render();
+    });
 
     function getDragAfterElement(container, y) {
       const draggableElements = [...container.querySelectorAll('.item:not(.dragging)')];
