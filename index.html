@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Passos da Visita</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 2rem;
+      background: #f3f4f6;
+    }
+    .container {
+      display: flex;
+      gap: 2rem;
+    }
+    .list {
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 300px;
+    }
+    .list h2 {
+      margin-top: 0;
+    }
+    .item {
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+      background: #e5e7eb;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: grab;
+    }
+    .item.dragging {
+      opacity: 0.5;
+    }
+    .delete-btn {
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: red;
+      font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="list" id="active-list">
+      <h2>Passos Ativos</h2>
+      <div id="active"></div>
+    </div>
+    <div class="list" id="inactive-list">
+      <h2>Passos Inativos</h2>
+      <div id="inactive"></div>
+    </div>
+  </div>
+
+  <script>
+    const steps = [
+      "Apresentação e pré-visita",
+      "Merchandising/ Execução",
+      "Relacionamento (visita)",
+      "Fechamento da visita",
+      "Treinamento - Lançamentos",
+      "Pós visita"
+    ];
+
+    let activeSteps = [...steps];
+    let inactiveSteps = [];
+
+    const activeContainer = document.getElementById('active');
+    const inactiveContainer = document.getElementById('inactive');
+
+    function render() {
+      activeContainer.innerHTML = '';
+      inactiveContainer.innerHTML = '';
+      
+      activeSteps.forEach((step, index) => {
+        const el = createItem(step, index, true);
+        activeContainer.appendChild(el);
+      });
+
+      inactiveSteps.forEach((step, index) => {
+        const el = createItem(step, index, false);
+        inactiveContainer.appendChild(el);
+      });
+
+      makeDraggable();
+    }
+
+    function createItem(text, index, isActive) {
+      const div = document.createElement('div');
+      div.className = 'item';
+      div.draggable = isActive;
+      div.dataset.index = index;
+      div.innerHTML = `
+        <span>${text}</span>
+        <button class="delete-btn">🗑️</button>
+      `;
+      div.querySelector('.delete-btn').onclick = () => {
+        if (isActive) {
+          inactiveSteps.push(activeSteps.splice(index, 1)[0]);
+        } else {
+          activeSteps.push(inactiveSteps.splice(index, 1)[0]);
+        }
+        render();
+      };
+      return div;
+    }
+
+    function makeDraggable() {
+      let dragged;
+
+      activeContainer.querySelectorAll('.item').forEach(item => {
+        item.addEventListener('dragstart', e => {
+          dragged = item;
+          item.classList.add('dragging');
+        });
+
+        item.addEventListener('dragend', e => {
+          item.classList.remove('dragging');
+        });
+      });
+
+      activeContainer.addEventListener('dragover', e => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(activeContainer, e.clientY);
+        if (afterElement == null) {
+          activeContainer.appendChild(dragged);
+        } else {
+          activeContainer.insertBefore(dragged, afterElement);
+        }
+      });
+
+      activeContainer.addEventListener('drop', () => {
+        const newOrder = Array.from(activeContainer.children).map(el => el.querySelector('span').innerText);
+        activeSteps = newOrder;
+        render();
+      });
+    }
+
+    function getDragAfterElement(container, y) {
+      const draggableElements = [...container.querySelectorAll('.item:not(.dragging)')];
+
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    render();
+  </script>
+</body>
+</html>
