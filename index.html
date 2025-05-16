@@ -6,11 +6,12 @@
   <title>Passos da Visita</title>
   <style>
     body {
-      font-family: sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #e0f7fa, #e1bee7);
       display: flex;
       justify-content: center;
       padding: 2rem;
-      background: #f3f4f6;
+      min-height: 100vh;
     }
     .container {
       display: flex;
@@ -18,43 +19,54 @@
     }
     .list {
       background: white;
-      padding: 1rem;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      width: 300px;
+      padding: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      width: 320px;
+      transition: transform 0.2s;
+    }
+    .list:hover {
+      transform: scale(1.02);
     }
     .list h2 {
       margin-top: 0;
+      font-size: 1.2rem;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
     }
     .item {
-      padding: 0.5rem;
+      padding: 0.7rem 1rem;
       margin: 0.5rem 0;
-      background: #e5e7eb;
-      border-radius: 4px;
+      background: #f1f8e9;
+      border-left: 4px solid #81c784;
+      border-radius: 5px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       cursor: grab;
+      transition: background 0.2s;
     }
     .item.dragging {
       opacity: 0.5;
+      background: #dcedc8;
     }
     .delete-btn {
       cursor: pointer;
       background: none;
       border: none;
-      color: red;
+      color: #e53935;
       font-size: 1.2rem;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="list" id="active-list">
+    <div class="list" id="active-list" ondrop="handleDrop(event, 'active')" ondragover="allowDrop(event)">
       <h2>Passos Ativos</h2>
       <div id="active"></div>
     </div>
-    <div class="list" id="inactive-list">
+    <div class="list" id="inactive-list" ondrop="handleDrop(event, 'inactive')" ondragover="allowDrop(event)">
       <h2>Passos Inativos</h2>
       <div id="inactive"></div>
     </div>
@@ -81,28 +93,29 @@
       inactiveContainer.innerHTML = '';
 
       activeSteps.forEach((step, index) => {
-        const el = createItem(step, index, true);
+        const el = createItem(step, index, 'active');
         activeContainer.appendChild(el);
       });
 
       inactiveSteps.forEach((step, index) => {
-        const el = createItem(step, index, false);
+        const el = createItem(step, index, 'inactive');
         inactiveContainer.appendChild(el);
       });
     }
 
-    function createItem(text, index, isActive) {
+    function createItem(text, index, listType) {
       const div = document.createElement('div');
       div.className = 'item';
-      div.draggable = isActive;
+      div.draggable = true;
       div.dataset.index = index;
+      div.dataset.list = listType;
       div.innerHTML = `
         <span>${text}</span>
         <button class="delete-btn">🗑️</button>
       `;
 
       div.querySelector('.delete-btn').onclick = () => {
-        if (isActive) {
+        if (listType === 'active') {
           inactiveSteps.push(activeSteps.splice(index, 1)[0]);
         } else {
           activeSteps.push(inactiveSteps.splice(index, 1)[0]);
@@ -110,47 +123,35 @@
         render();
       };
 
-      if (isActive) {
-        div.addEventListener('dragstart', (e) => {
-          div.classList.add('dragging');
-        });
-        div.addEventListener('dragend', (e) => {
-          div.classList.remove('dragging');
-        });
-      }
+      div.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', JSON.stringify({
+          index: index,
+          from: listType
+        }));
+        div.classList.add('dragging');
+      });
+
+      div.addEventListener('dragend', () => {
+        div.classList.remove('dragging');
+      });
 
       return div;
     }
 
-    activeContainer.addEventListener('dragover', (e) => {
+    function allowDrop(e) {
       e.preventDefault();
-      const dragging = document.querySelector('.dragging');
-      const afterElement = getDragAfterElement(activeContainer, e.clientY);
-      if (afterElement == null) {
-        activeContainer.appendChild(dragging);
-      } else {
-        activeContainer.insertBefore(dragging, afterElement);
-      }
-    });
+    }
 
-    activeContainer.addEventListener('drop', () => {
-      const newOrder = Array.from(activeContainer.children).map(el => el.querySelector('span').innerText);
-      activeSteps = newOrder;
+    function handleDrop(e, targetList) {
+      e.preventDefault();
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+
+      if (data.from === targetList) return;
+
+      const item = (data.from === 'active' ? activeSteps : inactiveSteps).splice(data.index, 1)[0];
+      (targetList === 'active' ? activeSteps : inactiveSteps).push(item);
+
       render();
-    });
-
-    function getDragAfterElement(container, y) {
-      const draggableElements = [...container.querySelectorAll('.item:not(.dragging)')];
-
-      return draggableElements.reduce((closest, child) => {
-        const box = child.getBoundingClientRect();
-        const offset = y - box.top - box.height / 2;
-        if (offset < 0 && offset > closest.offset) {
-          return { offset: offset, element: child };
-        } else {
-          return closest;
-        }
-      }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
     render();
