@@ -47,6 +47,10 @@
       cursor: grab;
       transition: background 0.2s;
     }
+    .inactive-item {
+      background: #ffebee;
+      border-left: 4px solid #e53935;
+    }
     .item.dragging {
       opacity: 0.5;
       background: #dcedc8;
@@ -84,6 +88,7 @@
 
     let activeSteps = [...steps];
     let inactiveSteps = [];
+    let dragIndex = null;
 
     const activeContainer = document.getElementById('active');
     const inactiveContainer = document.getElementById('inactive');
@@ -106,6 +111,7 @@
     function createItem(text, index, listType) {
       const div = document.createElement('div');
       div.className = 'item';
+      if (listType === 'inactive') div.classList.add('inactive-item');
       div.draggable = true;
       div.dataset.index = index;
       div.dataset.list = listType;
@@ -124,15 +130,27 @@
       };
 
       div.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('text/plain', JSON.stringify({
-          index: index,
-          from: listType
-        }));
+        dragIndex = index;
+        e.dataTransfer.setData('text/plain', JSON.stringify({ index, from: listType }));
         div.classList.add('dragging');
       });
 
       div.addEventListener('dragend', () => {
         div.classList.remove('dragging');
+      });
+
+      div.addEventListener('dragover', (e) => {
+        e.preventDefault();
+      });
+
+      div.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        if (data.from === listType && listType === 'active') {
+          const draggedItem = activeSteps.splice(data.index, 1)[0];
+          activeSteps.splice(index, 0, draggedItem);
+          render();
+        }
       });
 
       return div;
@@ -145,7 +163,6 @@
     function handleDrop(e, targetList) {
       e.preventDefault();
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-
       if (data.from === targetList) return;
 
       const item = (data.from === 'active' ? activeSteps : inactiveSteps).splice(data.index, 1)[0];
